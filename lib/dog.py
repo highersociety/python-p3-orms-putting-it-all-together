@@ -1,6 +1,10 @@
 # lib/dog.py
-import sqlite3
-from . import CONN, CURSOR
+try:
+    # Try relative import (works when running locally as a package)
+    from . import CONN, CURSOR
+except ImportError:
+    # Fallback for CodeGrade (imports as standalone file)
+    from __init__ import CONN, CURSOR  # type: ignore
 
 class Dog:
     def __init__(self, name, breed, id=None):
@@ -10,7 +14,6 @@ class Dog:
 
     @classmethod
     def create_table(cls):
-        """Create the dogs table if it does not already exist."""
         sql = """
         CREATE TABLE IF NOT EXISTS dogs (
             id INTEGER PRIMARY KEY,
@@ -23,13 +26,11 @@ class Dog:
 
     @classmethod
     def drop_table(cls):
-        """Drop the dogs table if it exists."""
         sql = "DROP TABLE IF EXISTS dogs"
         CURSOR.execute(sql)
         CONN.commit()
 
     def save(self):
-        """Insert or update the dog in the database."""
         if self.id:
             self.update()
         else:
@@ -41,39 +42,33 @@ class Dog:
 
     @classmethod
     def create(cls, name, breed):
-        """Create a new dog record and return the Dog instance."""
         dog = cls(name, breed)
         return dog.save()
 
     @classmethod
     def new_from_db(cls, row):
-        """Create a Dog instance from a database row."""
         return cls(name=row[1], breed=row[2], id=row[0])
 
     @classmethod
     def get_all(cls):
-        """Return all dog records as Dog instances."""
         sql = "SELECT * FROM dogs"
         rows = CURSOR.execute(sql).fetchall()
         return [cls.new_from_db(row) for row in rows]
 
     @classmethod
     def find_by_name(cls, name):
-        """Find a dog by name."""
         sql = "SELECT * FROM dogs WHERE name = ? LIMIT 1"
         row = CURSOR.execute(sql, (name,)).fetchone()
         return cls.new_from_db(row) if row else None
 
     @classmethod
     def find_by_id(cls, id):
-        """Find a dog by ID."""
         sql = "SELECT * FROM dogs WHERE id = ? LIMIT 1"
         row = CURSOR.execute(sql, (id,)).fetchone()
         return cls.new_from_db(row) if row else None
 
     @classmethod
     def find_or_create_by(cls, name, breed):
-        """Find a dog by name and breed, or create it."""
         sql = "SELECT * FROM dogs WHERE name = ? AND breed = ? LIMIT 1"
         row = CURSOR.execute(sql, (name, breed)).fetchone()
         if row:
@@ -82,11 +77,6 @@ class Dog:
             return cls.create(name, breed)
 
     def update(self):
-        """Update the dog's record in the database."""
         sql = "UPDATE dogs SET name = ?, breed = ? WHERE id = ?"
         CURSOR.execute(sql, (self.name, self.breed, self.id))
         CONN.commit()
-
-
-# Ensure table exists as soon as this module is loaded
-Dog.create_table()
